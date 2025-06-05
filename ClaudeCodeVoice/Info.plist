@@ -7,5 +7,7 @@
         <key>UIApplicationSupportsMultipleScenes</key>
         <true/>
     </dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>This app needs microphone access to transcribe your voice commands for Claude Code.</string>
 </dict>
 </plist>
