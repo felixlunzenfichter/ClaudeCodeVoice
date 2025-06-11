@@ -13,7 +13,7 @@ class AudioManager: NSObject {
     
     override init() {
         super.init()
-        writeLog("AudioManager init")
+        writeLog("AudioManager init on thread: \(Thread.isMainThread ? "Main" : "Background")")
         setupAudio()
     }
     
@@ -21,16 +21,20 @@ class AudioManager: NSObject {
         let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
         let logMessage = "[\(timestamp)] \(message)\n"
         
-        if let data = logMessage.data(using: .utf8) {
-            if FileManager.default.fileExists(atPath: logFile.path) {
-                if let fileHandle = try? FileHandle(forWritingTo: logFile) {
-                    fileHandle.seekToEndOfFile()
-                    fileHandle.write(data)
-                    fileHandle.closeFile()
+        do {
+            if let data = logMessage.data(using: .utf8) {
+                if FileManager.default.fileExists(atPath: logFile.path) {
+                    if let fileHandle = try? FileHandle(forWritingTo: logFile) {
+                        fileHandle.seekToEndOfFile()
+                        fileHandle.write(data)
+                        fileHandle.closeFile()
+                    }
+                } else {
+                    try data.write(to: logFile)
                 }
-            } else {
-                try? data.write(to: logFile)
             }
+        } catch {
+            print("Failed to write log: \(error)")
         }
     }
     
@@ -70,9 +74,13 @@ class AudioManager: NSObject {
             case .notDetermined:
                 writeLog("Permission not determined, requesting...")
                 await withCheckedContinuation { continuation in
-                    AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
-                        self?.writeLog("Permission request completed: \(granted)")
-                        continuation.resume()
+                    DispatchQueue.main.async {
+                        writeLog("Requesting access on main thread...")
+                        AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                            self?.writeLog("Permission callback received: \(granted)")
+                            continuation.resume()
+                        }
+                        writeLog("Request submitted to system")
                     }
                 }
             case .denied, .restricted:
