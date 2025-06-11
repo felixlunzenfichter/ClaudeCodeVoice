@@ -76,17 +76,40 @@ class AudioManager: NSObject {
             }
         } catch {
             writeLog("Failed to start audio engine: \(error)")
+            writeLog("Error code: \((error as NSError).code)")
+            writeLog("Error domain: \((error as NSError).domain)")
             writeLog("Error localized: \(error.localizedDescription)")
             
-            // If it fails due to permissions, it should trigger the permission dialog
-            if (error as NSError).code == -10871 { // kAudioUnitErr_Unauthorized
-                writeLog("Permission error detected, requesting permission...")
-                Task {
-                    await requestMicrophonePermission()
-                    // Try again after permission
-                    self.startRecording()
-                }
+            // Request permission and try again
+            writeLog("Requesting microphone permission...")
+            Task {
+                await requestMicrophonePermission()
+                writeLog("Permission request completed, retrying...")
+                // Try again after permission
+                self.retryRecording()
             }
+        }
+    }
+    
+    private func retryRecording() {
+        writeLog("Retrying recording after permission...")
+        
+        // Remove existing tap if any
+        inputNode.removeTap(onBus: 0)
+        
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+            self?.processAudioBuffer(buffer)
+        }
+        
+        do {
+            try audioEngine.start()
+            writeLog("Audio engine started successfully on retry")
+            DispatchQueue.main.async {
+                self.isRecording = true
+            }
+        } catch {
+            writeLog("Failed to start audio engine on retry: \(error)")
         }
     }
     
