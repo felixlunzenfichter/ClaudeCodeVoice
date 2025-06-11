@@ -60,6 +60,12 @@ class AudioManager: NSObject {
     func startRecording() {
         writeLog("Starting recording...")
         
+        // Check current permission status
+        #if os(macOS)
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        writeLog("Current permission status: \(status.rawValue) (0=notDetermined, 1=restricted, 2=denied, 3=authorized)")
+        #endif
+        
         // Try to start the audio engine directly to trigger permission dialog
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         writeLog("Recording format: \(recordingFormat)")
