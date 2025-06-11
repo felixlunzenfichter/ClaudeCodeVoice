@@ -1,9 +1,11 @@
 import AVFoundation
 import SwiftUI
+import Observation
 
-class AudioManager: NSObject, ObservableObject {
-    @Published var audioLevel: Float = 0.0
-    @Published var isRecording = false
+@Observable
+class AudioManager: NSObject {
+    var audioLevel: Float = 0.0
+    var isRecording = false
     
     private var audioEngine: AVAudioEngine!
     private var inputNode: AVAudioInputNode!
