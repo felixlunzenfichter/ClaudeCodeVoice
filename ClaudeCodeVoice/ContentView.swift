@@ -24,7 +24,11 @@ struct ContentView: View {
         .padding()
         .frame(minWidth: 400, minHeight: 300)
         .onAppear {
-            print("ContentView appeared")
+            let logFile = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("ClaudeCodeVoice_debug.log")
+            let logMessage = "[\(DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium))] ContentView appeared\n"
+            if let data = logMessage.data(using: .utf8) {
+                try? data.write(to: logFile, options: .atomic)
+            }
             audioManager.startRecording()
         }
     }

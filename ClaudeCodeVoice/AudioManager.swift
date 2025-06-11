@@ -9,33 +9,51 @@ class AudioManager: NSObject {
     
     private var audioEngine: AVAudioEngine!
     private var inputNode: AVAudioInputNode!
+    private let logFile = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!.appendingPathComponent("ClaudeCodeVoice_debug.log")
     
     override init() {
         super.init()
-        print("AudioManager init")
+        writeLog("AudioManager init")
         setupAudio()
     }
     
+    private func writeLog(_ message: String) {
+        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+        let logMessage = "[\(timestamp)] \(message)\n"
+        
+        if let data = logMessage.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: logFile.path) {
+                if let fileHandle = try? FileHandle(forWritingTo: logFile) {
+                    fileHandle.seekToEndOfFile()
+                    fileHandle.write(data)
+                    fileHandle.closeFile()
+                }
+            } else {
+                try? data.write(to: logFile)
+            }
+        }
+    }
+    
     private func setupAudio() {
-        print("Setting up audio...")
+        writeLog("Setting up audio...")
         audioEngine = AVAudioEngine()
         inputNode = audioEngine.inputNode
-        print("Audio setup complete")
+        writeLog("Audio setup complete")
     }
     
     func startRecording() {
         Task {
-            print("Starting recording...")
+            writeLog("Starting recording...")
             await requestMicrophonePermission()
             
             guard await checkMicrophonePermission() else {
-                print("Microphone permission not granted")
+                writeLog("Microphone permission not granted")
                 return
             }
             
-            print("Permission granted, setting up audio...")
+            writeLog("Permission granted, setting up audio...")
             let recordingFormat = inputNode.outputFormat(forBus: 0)
-            print("Recording format: \(recordingFormat)")
+            writeLog("Recording format: \(recordingFormat)")
             
             inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
                 self?.processAudioBuffer(buffer)
@@ -43,12 +61,12 @@ class AudioManager: NSObject {
             
             do {
                 try audioEngine.start()
-                print("Audio engine started successfully")
+                writeLog("Audio engine started successfully")
                 DispatchQueue.main.async {
                     self.isRecording = true
                 }
             } catch {
-                print("Failed to start audio engine: \(error)")
+                writeLog("Failed to start audio engine: \(error)")
             }
         }
     }
@@ -76,9 +94,10 @@ class AudioManager: NSObject {
         
         DispatchQueue.main.async {
             self.audioLevel = max(0.0, min(1.0, normalizedLevel))
-            if normalizedLevel > 0.01 {
-                print("Audio level: \(normalizedLevel), RMS: \(rms), Power: \(avgPower) dB")
-            }
+        }
+        
+        if normalizedLevel > 0.01 {
+            writeLog("Audio level: \(normalizedLevel), RMS: \(rms), Power: \(avgPower) dB")
         }
     }
     
@@ -106,15 +125,15 @@ class AudioManager: NSObject {
         switch AVCaptureDevice.authorizationStatus(for: .audio) {
         case .notDetermined:
             await withCheckedContinuation { continuation in
-                AVCaptureDevice.requestAccess(for: .audio) { granted in
-                    print("Microphone permission granted: \(granted)")
+                AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                    self?.writeLog("Microphone permission granted: \(granted)")
                     continuation.resume()
                 }
             }
         case .restricted, .denied:
-            print("Microphone access denied or restricted")
+            writeLog("Microphone access denied or restricted")
         case .authorized:
-            print("Microphone access already authorized")
+            writeLog("Microphone access already authorized")
         @unknown default:
             break
         }
