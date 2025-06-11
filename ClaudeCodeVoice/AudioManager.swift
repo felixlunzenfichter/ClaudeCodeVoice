@@ -44,9 +44,14 @@ class AudioManager: NSObject {
     func startRecording() {
         Task {
             writeLog("Starting recording...")
+            writeLog("About to request microphone permission...")
             await requestMicrophonePermission()
+            writeLog("Permission request completed")
             
-            guard await checkMicrophonePermission() else {
+            let hasPermission = await checkMicrophonePermission()
+            writeLog("Has permission: \(hasPermission)")
+            
+            guard hasPermission else {
                 writeLog("Microphone permission not granted")
                 return
             }
@@ -122,7 +127,9 @@ class AudioManager: NSObject {
     
     private func requestMicrophonePermission() async {
         #if os(macOS)
-        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        writeLog("Current microphone permission status: \(status.rawValue)")
+        switch status {
         case .notDetermined:
             await withCheckedContinuation { continuation in
                 AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
