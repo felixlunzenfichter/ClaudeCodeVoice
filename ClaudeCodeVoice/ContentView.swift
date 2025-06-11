@@ -2,7 +2,12 @@ import SwiftUI
 import AVFoundation
 
 struct ContentView: View {
-    @State private var audioManager = AudioManager()
+    @State private var audioManager: AudioManager
+    
+    init() {
+        let manager = AudioManager()
+        _audioManager = State(initialValue: manager)
+    }
     
     var body: some View {
         VStack(spacing: 20) {
