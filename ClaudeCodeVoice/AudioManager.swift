@@ -42,36 +42,34 @@ class AudioManager: NSObject {
     }
     
     func startRecording() {
-        Task {
-            writeLog("Starting recording...")
-            writeLog("About to request microphone permission...")
-            await requestMicrophonePermission()
-            writeLog("Permission request completed")
-            
-            let hasPermission = await checkMicrophonePermission()
-            writeLog("Has permission: \(hasPermission)")
-            
-            guard hasPermission else {
-                writeLog("Microphone permission not granted")
-                return
+        writeLog("Starting recording...")
+        
+        // Try to start the audio engine directly to trigger permission dialog
+        let recordingFormat = inputNode.outputFormat(forBus: 0)
+        writeLog("Recording format: \(recordingFormat)")
+        
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
+            self?.processAudioBuffer(buffer)
+        }
+        
+        do {
+            try audioEngine.start()
+            writeLog("Audio engine started successfully")
+            DispatchQueue.main.async {
+                self.isRecording = true
             }
+        } catch {
+            writeLog("Failed to start audio engine: \(error)")
+            writeLog("Error localized: \(error.localizedDescription)")
             
-            writeLog("Permission granted, setting up audio...")
-            let recordingFormat = inputNode.outputFormat(forBus: 0)
-            writeLog("Recording format: \(recordingFormat)")
-            
-            inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
-                self?.processAudioBuffer(buffer)
-            }
-            
-            do {
-                try audioEngine.start()
-                writeLog("Audio engine started successfully")
-                DispatchQueue.main.async {
-                    self.isRecording = true
+            // If it fails due to permissions, it should trigger the permission dialog
+            if (error as NSError).code == -10871 { // kAudioUnitErr_Unauthorized
+                writeLog("Permission error detected, requesting permission...")
+                Task {
+                    await requestMicrophonePermission()
+                    // Try again after permission
+                    self.startRecording()
                 }
-            } catch {
-                writeLog("Failed to start audio engine: \(error)")
             }
         }
     }
