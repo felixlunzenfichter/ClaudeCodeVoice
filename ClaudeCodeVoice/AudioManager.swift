@@ -12,12 +12,15 @@ class AudioManager: NSObject {
     
     override init() {
         super.init()
+        print("AudioManager init")
         setupAudio()
     }
     
     private func setupAudio() {
+        print("Setting up audio...")
         audioEngine = AVAudioEngine()
         inputNode = audioEngine.inputNode
+        print("Audio setup complete")
     }
     
     func startRecording() {

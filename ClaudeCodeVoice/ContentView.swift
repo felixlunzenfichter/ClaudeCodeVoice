@@ -16,9 +16,15 @@ struct ContentView: View {
             
             Text(audioManager.isRecording ? "Listening..." : "Starting...")
                 .foregroundColor(audioManager.isRecording ? .green : .gray)
+            
+            Text("Audio Level: \(String(format: "%.2f", audioManager.audioLevel))")
+                .font(.caption)
+                .foregroundColor(.gray)
         }
         .padding()
+        .frame(minWidth: 400, minHeight: 300)
         .onAppear {
+            print("ContentView appeared")
             audioManager.startRecording()
         }
     }
