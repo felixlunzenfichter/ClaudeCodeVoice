@@ -131,12 +131,16 @@ class AudioManager: NSObject {
         writeLog("Current microphone permission status: \(status.rawValue)")
         switch status {
         case .notDetermined:
+            writeLog("Permission not determined, requesting...")
             await withCheckedContinuation { continuation in
+                writeLog("Inside continuation...")
                 AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
-                    self?.writeLog("Microphone permission granted: \(granted)")
+                    self?.writeLog("Permission callback received: \(granted)")
                     continuation.resume()
                 }
+                writeLog("Request submitted")
             }
+            writeLog("Permission request finished")
         case .restricted, .denied:
             writeLog("Microphone access denied or restricted")
         case .authorized:
