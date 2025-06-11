@@ -61,12 +61,15 @@ class AudioManager: NSObject, ObservableObject {
         let rms = sqrt(sum / Float(channelCount * frameLength))
         let avgPower = 20 * log10(rms)
         
-        let minDb: Float = -80.0
+        let minDb: Float = -60.0
         let maxDb: Float = -10.0
         let normalizedLevel = (avgPower - minDb) / (maxDb - minDb)
         
         DispatchQueue.main.async {
             self.audioLevel = max(0.0, min(1.0, normalizedLevel))
+            if normalizedLevel > 0.01 {
+                print("Audio level: \(normalizedLevel), RMS: \(rms), Power: \(avgPower) dB")
+            }
         }
     }
     
