@@ -22,6 +22,7 @@ class AudioManager: NSObject {
     
     func startRecording() {
         Task {
+            print("Starting recording...")
             await requestMicrophonePermission()
             
             guard await checkMicrophonePermission() else {
@@ -29,7 +30,9 @@ class AudioManager: NSObject {
                 return
             }
             
+            print("Permission granted, setting up audio...")
             let recordingFormat = inputNode.outputFormat(forBus: 0)
+            print("Recording format: \(recordingFormat)")
             
             inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
                 self?.processAudioBuffer(buffer)
@@ -37,6 +40,7 @@ class AudioManager: NSObject {
             
             do {
                 try audioEngine.start()
+                print("Audio engine started successfully")
                 DispatchQueue.main.async {
                     self.isRecording = true
                 }
@@ -77,7 +81,14 @@ class AudioManager: NSObject {
     
     private func checkMicrophonePermission() async -> Bool {
         #if os(macOS)
-        return true
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            return true
+        case .notDetermined, .denied, .restricted:
+            return false
+        @unknown default:
+            return false
+        }
         #else
         if #available(iOS 17.0, *) {
             return AVAudioApplication.shared.recordPermission == .granted
@@ -89,7 +100,21 @@ class AudioManager: NSObject {
     
     private func requestMicrophonePermission() async {
         #if os(macOS)
-        return
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .notDetermined:
+            await withCheckedContinuation { continuation in
+                AVCaptureDevice.requestAccess(for: .audio) { granted in
+                    print("Microphone permission granted: \(granted)")
+                    continuation.resume()
+                }
+            }
+        case .restricted, .denied:
+            print("Microphone access denied or restricted")
+        case .authorized:
+            print("Microphone access already authorized")
+        @unknown default:
+            break
+        }
         #else
         if #available(iOS 17.0, *) {
             let permission = AVAudioApplication.shared.recordPermission
