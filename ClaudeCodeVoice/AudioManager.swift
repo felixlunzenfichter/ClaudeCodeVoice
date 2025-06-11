@@ -74,33 +74,43 @@ class AudioManager: NSObject {
         }
     }
     
+    private var bufferCount = 0
+    
     private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
         guard let channelData = buffer.floatChannelData else { return }
+        
+        bufferCount += 1
+        if bufferCount % 100 == 0 { // Log every 100th buffer
+            writeLog("Processing buffer #\(bufferCount)")
+        }
         
         let channelCount = Int(buffer.format.channelCount)
         let frameLength = Int(buffer.frameLength)
         
         var sum: Float = 0.0
+        var maxSample: Float = 0.0
         for channel in 0..<channelCount {
             for frame in 0..<frameLength {
                 let sample = channelData[channel][frame]
                 sum += sample * sample
+                maxSample = max(maxSample, abs(sample))
             }
         }
         
         let rms = sqrt(sum / Float(channelCount * frameLength))
-        let avgPower = 20 * log10(rms)
+        let avgPower = 20 * log10(max(rms, 0.00001)) // Avoid log(0)
         
-        let minDb: Float = -60.0
-        let maxDb: Float = -10.0
+        let minDb: Float = -50.0  // More sensitive
+        let maxDb: Float = -5.0   // More sensitive
         let normalizedLevel = (avgPower - minDb) / (maxDb - minDb)
         
         DispatchQueue.main.async {
             self.audioLevel = max(0.0, min(1.0, normalizedLevel))
         }
         
-        if normalizedLevel > 0.01 {
-            writeLog("Audio level: \(normalizedLevel), RMS: \(rms), Power: \(avgPower) dB")
+        // Log any detected audio
+        if maxSample > 0.001 {
+            writeLog("Audio detected! Max sample: \(maxSample), RMS: \(rms), Power: \(avgPower) dB, Normalized: \(normalizedLevel)")
         }
     }
     
