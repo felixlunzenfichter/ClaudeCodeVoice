@@ -38,6 +38,22 @@ class AudioManager: NSObject {
         writeLog("Setting up audio...")
         audioEngine = AVAudioEngine()
         inputNode = audioEngine.inputNode
+        
+        // Log audio device info
+        let inputFormat = inputNode.inputFormat(forBus: 0)
+        writeLog("Input device: \(inputNode)")
+        writeLog("Input format channels: \(inputFormat.channelCount)")
+        writeLog("Input format sample rate: \(inputFormat.sampleRate)")
+        
+        #if os(macOS)
+        // Check if we can access AVCaptureDevice
+        let devices = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .externalUnknown], mediaType: .audio, position: .unspecified).devices
+        writeLog("Available audio devices: \(devices.count)")
+        for device in devices {
+            writeLog("Device: \(device.localizedName) - \(device.uniqueID)")
+        }
+        #endif
+        
         writeLog("Audio setup complete")
     }
     
