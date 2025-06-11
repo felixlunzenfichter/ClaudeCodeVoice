@@ -51,7 +51,7 @@ class AudioManager: NSObject {
         
         #if os(macOS)
         // Check if we can access AVCaptureDevice
-        let devices = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .externalUnknown], mediaType: .audio, position: .unspecified).devices
+        let devices = AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInMicrophone, .external], mediaType: .audio, position: .unspecified).devices
         writeLog("Available audio devices: \(devices.count)")
         for device in devices {
             writeLog("Device: \(device.localizedName) - \(device.uniqueID)")
@@ -74,13 +74,13 @@ class AudioManager: NSObject {
             case .notDetermined:
                 writeLog("Permission not determined, requesting...")
                 await withCheckedContinuation { continuation in
-                    DispatchQueue.main.async {
-                        writeLog("Requesting access on main thread...")
-                        AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                    DispatchQueue.main.async { [weak self] in
+                        self?.writeLog("Requesting access on main thread...")
+                        AVCaptureDevice.requestAccess(for: .audio) { granted in
                             self?.writeLog("Permission callback received: \(granted)")
                             continuation.resume()
                         }
-                        writeLog("Request submitted to system")
+                        self?.writeLog("Request submitted to system")
                     }
                 }
             case .denied, .restricted:
