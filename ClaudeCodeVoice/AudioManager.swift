@@ -7,7 +7,6 @@ class AudioManager: NSObject, ObservableObject {
     
     private var audioEngine: AVAudioEngine!
     private var inputNode: AVAudioInputNode!
-    private var audioSession: AVAudioSession!
     
     override init() {
         super.init()
@@ -17,21 +16,13 @@ class AudioManager: NSObject, ObservableObject {
     private func setupAudio() {
         audioEngine = AVAudioEngine()
         inputNode = audioEngine.inputNode
-        audioSession = AVAudioSession.sharedInstance()
-        
-        do {
-            try audioSession.setCategory(.record, mode: .measurement)
-            try audioSession.setActive(true)
-        } catch {
-            print("Failed to set up audio session: \(error)")
-        }
     }
     
     func startRecording() {
         Task {
             await requestMicrophonePermission()
             
-            guard AVAudioSession.sharedInstance().recordPermission == .granted else {
+            guard await checkMicrophonePermission() else {
                 print("Microphone permission not granted")
                 return
             }
@@ -79,21 +70,55 @@ class AudioManager: NSObject, ObservableObject {
         }
     }
     
-    private func requestMicrophonePermission() async {
-        switch AVAudioSession.sharedInstance().recordPermission {
-        case .undetermined:
-            await withCheckedContinuation { continuation in
-                AVAudioSession.sharedInstance().requestRecordPermission { _ in
-                    continuation.resume()
-                }
-            }
-        case .denied:
-            print("Microphone access denied")
-        case .granted:
-            print("Microphone access granted")
-        @unknown default:
-            break
+    private func checkMicrophonePermission() async -> Bool {
+        #if os(macOS)
+        return true
+        #else
+        if #available(iOS 17.0, *) {
+            return AVAudioApplication.shared.recordPermission == .granted
+        } else {
+            return AVAudioSession.sharedInstance().recordPermission == .granted
         }
+        #endif
+    }
+    
+    private func requestMicrophonePermission() async {
+        #if os(macOS)
+        return
+        #else
+        if #available(iOS 17.0, *) {
+            let permission = AVAudioApplication.shared.recordPermission
+            switch permission {
+            case .undetermined:
+                await withCheckedContinuation { continuation in
+                    AVAudioApplication.requestRecordPermissionWithCompletionHandler { _ in
+                        continuation.resume()
+                    }
+                }
+            case .denied:
+                print("Microphone access denied")
+            case .granted:
+                print("Microphone access granted")
+            default:
+                break
+            }
+        } else {
+            switch AVAudioSession.sharedInstance().recordPermission {
+            case .undetermined:
+                await withCheckedContinuation { continuation in
+                    AVAudioSession.sharedInstance().requestRecordPermission { _ in
+                        continuation.resume()
+                    }
+                }
+            case .denied:
+                print("Microphone access denied")
+            case .granted:
+                print("Microphone access granted")
+            @unknown default:
+                break
+            }
+        }
+        #endif
     }
     
     func stopRecording() {
