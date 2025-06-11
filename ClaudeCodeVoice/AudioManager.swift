@@ -79,13 +79,19 @@ class AudioManager: NSObject {
     private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
         guard let channelData = buffer.floatChannelData else { return }
         
-        bufferCount += 1
-        if bufferCount % 100 == 0 { // Log every 100th buffer
-            writeLog("Processing buffer #\(bufferCount)")
-        }
-        
         let channelCount = Int(buffer.format.channelCount)
         let frameLength = Int(buffer.frameLength)
+        
+        bufferCount += 1
+        
+        // Sample first 10 values every 100 buffers
+        if bufferCount % 100 == 0 {
+            var samples: [Float] = []
+            for i in 0..<min(10, frameLength) {
+                samples.append(channelData[0][i])
+            }
+            writeLog("Buffer #\(bufferCount): \(samples)")
+        }
         
         var sum: Float = 0.0
         var maxSample: Float = 0.0
