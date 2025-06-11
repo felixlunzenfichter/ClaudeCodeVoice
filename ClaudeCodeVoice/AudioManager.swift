@@ -60,13 +60,39 @@ class AudioManager: NSObject {
     func startRecording() {
         writeLog("Starting recording...")
         
-        // Check current permission status
-        #if os(macOS)
-        let status = AVCaptureDevice.authorizationStatus(for: .audio)
-        writeLog("Current permission status: \(status.rawValue) (0=notDetermined, 1=restricted, 2=denied, 3=authorized)")
-        #endif
+        Task {
+            // Check and request permission first
+            #if os(macOS)
+            let status = AVCaptureDevice.authorizationStatus(for: .audio)
+            writeLog("Current permission status: \(status.rawValue) (0=notDetermined, 1=restricted, 2=denied, 3=authorized)")
+            
+            switch status {
+            case .notDetermined:
+                writeLog("Permission not determined, requesting...")
+                await withCheckedContinuation { continuation in
+                    AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                        self?.writeLog("Permission request completed: \(granted)")
+                        continuation.resume()
+                    }
+                }
+            case .denied, .restricted:
+                writeLog("Microphone access denied or restricted")
+                return
+            case .authorized:
+                writeLog("Microphone already authorized")
+            @unknown default:
+                writeLog("Unknown permission status")
+            }
+            #endif
+            
+            // Now try to start recording
+            startAudioEngine()
+        }
+    }
+    
+    private func startAudioEngine() {
+        writeLog("Starting audio engine...")
         
-        // Try to start the audio engine directly to trigger permission dialog
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         writeLog("Recording format: \(recordingFormat)")
         
@@ -85,15 +111,6 @@ class AudioManager: NSObject {
             writeLog("Error code: \((error as NSError).code)")
             writeLog("Error domain: \((error as NSError).domain)")
             writeLog("Error localized: \(error.localizedDescription)")
-            
-            // Request permission and try again
-            writeLog("Requesting microphone permission...")
-            Task {
-                await requestMicrophonePermission()
-                writeLog("Permission request completed, retrying...")
-                // Try again after permission
-                self.retryRecording()
-            }
         }
     }
     
